@@ -1,0 +1,112 @@
+#define MOTOR_PIN1 3
+#define MOTOR_PIN2 4
+#define ENA_PIN 5 // PWM pin for speed control
+#define ENCODER_PIN_A 2
+#define ENCODER_PIN_B 6
+
+volatile int encoderPos = 0; // Tracks the current encoder position
+const int pulsesPerRevolution = 360; // Adjust based on your encoder specs
+const int degreesPerPulse = 360 / pulsesPerRevolution; // Degrees per encoder pulse
+const int motorSpeed = 128; // Speed for motor (adjustable)
+
+void setup() {
+  // Initialize motor pins
+  pinMode(MOTOR_PIN1, OUTPUT);
+  pinMode(MOTOR_PIN2, OUTPUT);
+  pinMode(ENA_PIN, OUTPUT);
+
+  // Initialize encoder pins
+  pinMode(ENCODER_PIN_A, INPUT_PULLUP);
+  pinMode(ENCODER_PIN_B, INPUT_PULLUP);
+
+  // Attach interrupt to encoder
+  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A), encoderISR, CHANGE);
+
+  // Start serial communication
+  Serial.begin(9600);
+
+  // Zero the encoder position at startup
+  encoderPos = 0;
+  Serial.println("Encoder position reset to zero.");
+}
+
+void loop() {
+  // Move through angles from 0 to 20 degrees in increments of 2 degrees
+  for (int targetDegrees = 10; targetDegrees <= 20; targetDegrees += 2) {
+    moveToAndBack(targetDegrees);
+    delay(5000); // Wait for 5 seconds before moving to the next step
+  }
+
+  // Optional: Stop the loop or reset if needed
+  while (true); // Infinite loop to halt further movement
+}
+
+void moveToAndBack(int degrees) {
+  int currentDegrees = encoderPos * degreesPerPulse;
+
+  Serial.print("Moving to target: ");
+  Serial.print(degrees);
+  Serial.println(" degrees.");
+
+  // Move to the target position
+  while (currentDegrees < degrees) {
+    spinClockwise();
+    currentDegrees = encoderPos * degreesPerPulse;
+    Serial.print("Current Position: ");
+    Serial.print(currentDegrees);
+    Serial.println(" degrees.");
+    delay(50); // Stability delay
+  }
+
+  stopMotor();
+  Serial.println("Target reached.");
+
+  // Delay before switching direction
+  delay(5000); // 500ms pause before moving back
+
+  // Move back to the starting position
+  Serial.println("Returning to starting position...");
+  while (encoderPos > 0) {
+    spinCounterclockwise();
+    currentDegrees = encoderPos * degreesPerPulse;
+    Serial.print("Current Position: ");
+    Serial.print(currentDegrees);
+    Serial.println(" degrees.");
+    delay(50); // Stability delay
+  }
+
+  stopMotor();
+  Serial.println("Returned to starting position.");
+}
+
+void spinClockwise() {
+  analogWrite(ENA_PIN, motorSpeed);
+  digitalWrite(MOTOR_PIN1, HIGH);
+  digitalWrite(MOTOR_PIN2, LOW);
+}
+
+void spinCounterclockwise() {
+  analogWrite(ENA_PIN, motorSpeed);
+  digitalWrite(MOTOR_PIN1, LOW);
+  digitalWrite(MOTOR_PIN2, HIGH);
+}
+
+void stopMotor() {
+  analogWrite(ENA_PIN, 0);
+  digitalWrite(MOTOR_PIN1, LOW);
+  digitalWrite(MOTOR_PIN2, LOW);
+}
+
+void encoderISR() {
+  static int lastStateB = LOW;
+  int currentStateB = digitalRead(ENCODER_PIN_B);
+
+  if (currentStateB != lastStateB) {
+    if (digitalRead(ENCODER_PIN_A) == currentStateB) {
+      encoderPos--; // Counterclockwise rotation
+    } else {
+      encoderPos++; // Clockwise rotation
+    }
+  }
+  lastStateB = currentStateB;
+}
