@@ -1,0 +1,91 @@
+const int encoderPinA = 2;
+const int encoderPinB = 6;
+const int motorIn1 = 3;
+const int motorIn2 = 4;
+const int motorEnA = 5;
+
+volatile int encoderPosition = 0;  // Encoder position
+int targetPulses = 17;             // Target position (in pulses)
+float error = 0;
+float output = 0;
+
+void readEncoder() {
+  // Read the state of pin B whenever A rises
+  int stateB = digitalRead(encoderPinB);
+
+  // If pin A is HIGH, check the state of pin B to determine direction
+  if (stateB == HIGH) {
+    encoderPosition++;  // Clockwise rotation
+  } else {
+    encoderPosition--;  // Counter-clockwise rotation
+  }
+}
+
+void setup() {
+  pinMode(motorIn1, OUTPUT);
+  pinMode(motorIn2, OUTPUT);
+  pinMode(motorEnA, OUTPUT);
+  pinMode(encoderPinA, INPUT_PULLUP);
+  pinMode(encoderPinB, INPUT_PULLUP);
+
+  attachInterrupt(digitalPinToInterrupt(encoderPinA), readEncoder, RISING);
+  Serial.begin(115200);
+}
+
+void loop() {
+  // Move forward to target position
+  moveToPosition(targetPulses);
+  delay(5000); // Wait at target for 5 seconds
+  
+  // Now move backward to zero position
+  moveToPosition(0);
+}
+
+void moveToPosition(int target) {
+  error = target - encoderPosition;
+
+  // Move motor while error is large
+  while (abs(error) > 1) {
+    error = target - encoderPosition;
+
+    // Adjust motor speed based on error (simple proportional control)
+    output = error * 2;  // Simple proportional control for now
+
+    // Motor direction and speed
+    if (output > 0) {
+      digitalWrite(motorIn1, HIGH);
+      digitalWrite(motorIn2, LOW);
+      analogWrite(motorEnA, min(output, 255));  // Move forward
+    } else {
+      digitalWrite(motorIn1, LOW);
+      digitalWrite(motorIn2, HIGH);
+      analogWrite(motorEnA, min(abs(output), 255));  // Move backward
+    }
+
+    // Debugging information
+    Serial.print("Target: ");
+    Serial.print(target);
+    Serial.print(" | Position: ");
+    Serial.print(encoderPosition);
+    Serial.print(" | Error: ");
+    Serial.println(error);
+
+    delay(10);  // Small delay for stability
+  }
+
+  // **Explicitly Stop Motor When Target is Reached**
+  stopMotor();
+  
+  // Debugging info for motor stop
+  Serial.println("Target reached, motor stopped.");
+}
+
+void stopMotor() {
+  // Stop the motor by setting all control pins to LOW and PWM to 0
+  digitalWrite(motorIn1, LOW);
+  digitalWrite(motorIn2, LOW);
+  analogWrite(motorEnA, 0);
+
+  // Small delay to ensure motor stops completely
+  delay(100);  // Allow time for motor to stop
+}
