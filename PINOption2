@@ -1,0 +1,28 @@
+const int motorIn1 = 3;
+const int motorIn2 = 4;
+const int motorEnA = 5;
+
+void setup() {
+  pinMode(motorIn1, OUTPUT);
+  pinMode(motorIn2, OUTPUT);
+  pinMode(motorEnA, OUTPUT);
+
+  // Move motor forward for 2 seconds
+  digitalWrite(motorIn1, HIGH);
+  digitalWrite(motorIn2, LOW);
+  analogWrite(motorEnA, 255);
+  delay(2000);
+
+  // Move motor backward for 2 seconds
+  digitalWrite(motorIn1, LOW);
+  digitalWrite(motorIn2, HIGH);
+  analogWrite(motorEnA, 255);
+  delay(2000);
+  
+  // Stop motor
+  digitalWrite(motorIn1, LOW);
+  digitalWrite(motorIn2, LOW);
+  analogWrite(motorEnA, 0);
+}
+
+void loop() {}
